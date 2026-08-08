@@ -24,6 +24,20 @@ const storage = configured
       filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')),
     });
 
+const avatarStorage = configured
+  ? new CloudinaryStorage({
+      cloudinary,
+      params: {
+        folder: 'drawlonger/avatars',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
+      },
+    })
+  : multer.diskStorage({
+      destination: (req, file, cb) => cb(null, require('path').join(__dirname, '..', 'uploads')),
+      filename: (req, file, cb) => cb(null, 'avatar-' + Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')),
+    });
+
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -33,4 +47,13 @@ const upload = multer({
   },
 });
 
-module.exports = { upload, configured };
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(jpeg|png|gif|webp)$/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only image files are allowed'));
+  },
+});
+
+module.exports = { upload, uploadAvatar, configured };
