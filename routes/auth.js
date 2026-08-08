@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const { JWT_SECRET, requireAuth } = require('../middleware/auth');
+const { uploadAvatar } = require('../db/cloudinary');
 
 const router = express.Router();
 
@@ -71,6 +72,42 @@ router.post('/logout', (req, res) => {
 
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: publicUser(req.user) });
+});
+
+router.post('/me/profile', requireAuth, uploadAvatar.single('avatar'), (req, res) => {
+  const { display_name, bio } = req.body;
+  const updates = [];
+  const values = [];
+
+  if (display_name !== undefined) {
+    const dn = String(display_name).trim();
+    if (!dn) return res.status(400).json({ error: 'Display name cannot be empty' });
+    if (dn.length > 60) return res.status(400).json({ error: 'Display name is too long' });
+    updates.push('display_name = ?');
+    values.push(dn);
+  }
+
+  if (bio !== undefined) {
+    const b = String(bio).trim();
+    if (b.length > 300) return res.status(400).json({ error: 'Bio is too long (300 characters max)' });
+    updates.push('bio = ?');
+    values.push(b);
+  }
+
+  if (req.file) {
+    const { configured } = require('../db/cloudinary');
+    const avatarUrl = configured ? req.file.path : `/uploads/${req.file.filename}`;
+    updates.push('avatar_url = ?');
+    values.push(avatarUrl);
+  }
+
+  if (!updates.length) return res.status(400).json({ error: 'Nothing to update' });
+
+  values.push(req.user.id);
+  db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  res.json({ user: publicUser(user) });
 });
 
 module.exports = { router, publicUser };
