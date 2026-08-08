@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>drawlonger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div id="banner" class="banner hidden"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="logo" data-nav="home">
+      <span class="logo-mark">✎</span><span class="logo-text">drawlonger</span>
+    </a>
+    <div class="search-wrap">
+      <input id="searchInput" type="text" placeholder="Search pins, people, boards..." autocomplete="off">
+    </div>
+    <nav class="topnav" id="topnav">
+      <!-- filled by JS depending on auth state -->
+    </nav>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<div id="modalRoot"></div>
+
+<script src="/app.js" defer></script>
+</body>
+</html>
