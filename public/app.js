@@ -418,6 +418,7 @@ async function renderProfile(username) {
   app.innerHTML = `<div class="loading-state">Loading profile...</div>`;
   try {
     const { user, pins } = await api('GET', `/api/pins/user/${username}`);
+    const isMe = currentUser && currentUser.username === user.username;
     app.innerHTML = `
       <div class="profile-header">
         <div class="profile-avatar">${avatarHtml(user)}</div>
@@ -425,13 +426,62 @@ async function renderProfile(username) {
         <div class="profile-username">@${esc(user.username)}</div>
         ${user.bio ? `<p class="profile-bio">${esc(user.bio)}</p>` : ''}
         ${user.role !== 'user' ? `<div class="role-pill">${user.role}</div>` : ''}
+        ${isMe ? `<div style="margin-top:14px;"><button class="btn secondary small" id="editProfileBtn">Edit profile</button></div>` : ''}
       </div>
       ${pins.length ? `<div class="masonry">${pins.map(pinCardHtml).join('')}</div>` : `<div class="empty-state"><div class="icon">✎</div>No pins yet.</div>`}
     `;
     wirePinCards(app);
+    if (isMe) document.getElementById('editProfileBtn').onclick = () => openEditProfileModal(user);
   } catch (e) {
     app.innerHTML = `<div class="empty-state">${esc(e.message)}</div>`;
   }
+}
+
+function openEditProfileModal(user) {
+  openModal(`
+    <h2>Edit profile</h2>
+    <form id="editProfileForm">
+      <label class="upload-drop ${user.avatar_url ? 'has-image' : ''}" id="avatarDrop" style="max-width:160px;margin:0 auto 20px;border-radius:50%;aspect-ratio:1;display:flex;align-items:center;justify-content:center;">
+        ${user.avatar_url ? `<img src="${esc(user.avatar_url)}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : `<span>Click to add a photo<div class="hint-text">Square works best</div></span>`}
+        <input type="file" name="avatar" id="avatarInput" accept="image/*">
+      </label>
+      <div class="field"><label>Display name</label><input name="display_name" value="${esc(user.display_name)}" required maxlength="60"></div>
+      <div class="field"><label>Bio</label><textarea name="bio" maxlength="300" placeholder="Tell people about yourself">${esc(user.bio || '')}</textarea></div>
+      <button class="btn full" type="submit" id="saveProfileBtn">Save changes</button>
+    </form>
+  `);
+
+  const avatarDrop = document.getElementById('avatarDrop');
+  const avatarInput = document.getElementById('avatarInput');
+  avatarDrop.addEventListener('click', (e) => { if (e.target !== avatarInput) avatarInput.click(); });
+  avatarInput.addEventListener('change', () => {
+    const file = avatarInput.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    avatarDrop.classList.add('has-image');
+    avatarDrop.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+    avatarDrop.appendChild(avatarInput);
+  });
+
+  document.getElementById('editProfileForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('saveProfileBtn');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    const fd = new FormData(e.target);
+    try {
+      const { user: updated } = await api('POST', '/api/auth/me/profile', fd, true);
+      currentUser = updated;
+      renderNav();
+      closeModal();
+      toast('Profile updated');
+      renderProfile(updated.username);
+    } catch (err) {
+      toast(err.message);
+      btn.disabled = false;
+      btn.textContent = 'Save changes';
+    }
+  };
 }
 
 // ============ ADMIN PANEL ============
